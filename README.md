@@ -8,7 +8,13 @@
 - 検出漏れは手動追加
 - PNG保存
 
-## Live deployment
+## Temporary cloud preview
+
+[Einsteinをブラウザで開く](https://raw.githack.com/Saber5656/Einstein/main/index.html)
+
+開発中の低トラフィック確認用URLです。正式公開はNetlifyを使用します。
+
+## Netlify
 
 [![Deploy to Netlify](https://www.netlify.com/img/deploy/button.svg)](https://app.netlify.com/start/deploy?repository=https://github.com/Saber5656/Einstein)
 
@@ -17,6 +23,7 @@ Netlify設定はリポジトリ直下の `netlify.toml` にあり、`dist/` を�
 ## Repository structure
 
 ```text
+index.html
 dist/
   index.html
   app.js
