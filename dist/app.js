@@ -10,6 +10,16 @@ const FULL_FACE_MODEL='https://storage.googleapis.com/mediapipe-models/face_dete
 let mediaPipeModulePromise=null;
 let visionPromise=null;
 
+function showLoading(message='顔を探しています…'){
+ loading.textContent=message;
+ loading.hidden=false;
+ loading.style.display='grid';
+}
+function hideLoading(){
+ loading.hidden=true;
+ loading.style.display='none';
+}
+
 async function mediaPipeModule(){
  return mediaPipeModulePromise??=import(MP_MODULE);
 }
@@ -75,13 +85,14 @@ async function detectFaces(){
 
 async function load(blob){
  if(!blob)return;
- loading.hidden=false;drop.hidden=true;editor.hidden=false;controls.disabled=true;save.disabled=true;status.textContent='画像を読み込んでいます…';
+ showLoading('画像を読み込んでいます…');drop.hidden=true;editor.hidden=false;controls.disabled=true;save.disabled=true;status.textContent='画像を読み込んでいます…';
  try{
   const decoded=await decodeImage(blob);
   const iw=decoded.width||decoded.naturalWidth,ih=decoded.height||decoded.naturalHeight;
   if(!iw||!ih)throw new Error('画像サイズを取得できませんでした');
   const [w,h]=fitSize(iw,ih);canvas.width=w;canvas.height=h;image=decoded;faces=[];manual=[];
   ctx.drawImage(image,0,0,w,h);
+  showLoading('顔を探しています…');
   status.textContent='顔検出モデルを準備しています…';
   try{
    const detection=await detectFaces();faces=detection.faces;
@@ -97,7 +108,7 @@ async function load(blob){
   controls.disabled=false;save.disabled=false;render();
  }catch(e){
   console.error(e);drop.hidden=false;editor.hidden=true;controls.disabled=true;save.disabled=true;count.textContent='画像を読み込めませんでした';status.textContent='別のJPEG / PNG / WebP / HEIC画像を選んでください。';alert('この画像を読み込めませんでした。別の画像を選んでください。');
- }finally{loading.hidden=true;file.value='';}
+ }finally{hideLoading();file.value='';}
 }
 
 function tongue(c,f){
@@ -124,3 +135,4 @@ save.onclick=()=>{if(!image)return;const prev=showOriginal;showOriginal=false;re
 for(const ev of ['dragenter','dragover'])drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.add('drag')});
 for(const ev of ['dragleave','drop'])drop.addEventListener(ev,e=>{e.preventDefault();drop.classList.remove('drag')});
 drop.addEventListener('drop',e=>e.dataTransfer?.files?.[0]&&load(e.dataTransfer.files[0]));
+hideLoading();
