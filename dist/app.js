@@ -1,25 +1,41 @@
 const $=id=>document.getElementById(id);
 const file=$('file'),drop=$('drop'),editor=$('editor'),canvas=$('canvas'),ctx=canvas.getContext('2d'),controls=$('controls'),save=$('save'),status=$('status'),count=$('count'),loading=$('loading');
-let detectorPromise=null,image=null,faces=[],manual=[],showOriginal=false,manualMode=false,settings={size:1,length:1,style:'soft'};
+let shortDetectorPromise=null,fullDetectorPromise=null,image=null,faces=[],manual=[],showOriginal=false,manualMode=false,settings={size:1,length:1,style:'soft'};
 
 const MP_VERSION='0.10.32';
 const MP_MODULE=`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSION}/+esm`;
 const MP_WASM=`https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@${MP_VERSION}/wasm`;
-const FACE_MODEL='https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite';
+const SHORT_FACE_MODEL='https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_short_range/float16/1/blaze_face_short_range.tflite';
+const FULL_FACE_MODEL='https://storage.googleapis.com/mediapipe-models/face_detector/blaze_face_full_range/float16/1/blaze_face_full_range.tflite';
+let mediaPipeModulePromise=null;
+let visionPromise=null;
 
-async function initDetector(){
- try{
-  const {FaceDetector,FilesetResolver}=await import(MP_MODULE);
-  const vision=await FilesetResolver.forVisionTasks(MP_WASM);
-  const detector=await FaceDetector.createFromModelPath(vision,FACE_MODEL);
-  await detector.setOptions({runningMode:'IMAGE',minDetectionConfidence:.25,minSuppressionThreshold:.3});
-  return detector;
- }catch(error){
-  detectorPromise=null;
-  throw error;
- }
+async function mediaPipeModule(){
+ return mediaPipeModulePromise??=import(MP_MODULE);
 }
-function detector(){return detectorPromise??=initDetector();}
+async function visionFileset(){
+ if(!visionPromise){
+  visionPromise=(async()=>{
+   const {FilesetResolver}=await mediaPipeModule();
+   return FilesetResolver.forVisionTasks(MP_WASM);
+  })().catch(error=>{visionPromise=null;throw error;});
+ }
+ return visionPromise;
+}
+async function createDetector(modelUrl){
+ const [{FaceDetector},vision]=await Promise.all([mediaPipeModule(),visionFileset()]);
+ const detector=await FaceDetector.createFromModelPath(vision,modelUrl);
+ await detector.setOptions({runningMode:'IMAGE',minDetectionConfidence:.2,minSuppressionThreshold:.3});
+ return detector;
+}
+function shortDetector(){
+ if(!shortDetectorPromise)shortDetectorPromise=createDetector(SHORT_FACE_MODEL).catch(error=>{shortDetectorPromise=null;throw error;});
+ return shortDetectorPromise;
+}
+function fullDetector(){
+ if(!fullDetectorPromise)fullDetectorPromise=createDetector(FULL_FACE_MODEL).catch(error=>{fullDetectorPromise=null;throw error;});
+ return fullDetectorPromise;
+}
 function fitSize(w,h){const max=2200,s=Math.min(1,max/Math.max(w,h));return [Math.round(w*s),Math.round(h*s)]}
 
 async function decodeImage(blob){
@@ -39,15 +55,22 @@ async function decodeImage(blob){
  }
 }
 
-async function detectFaces(){
- const d=await detector();
- const result=d.detect(canvas);
- return (result.detections||[]).map((det,i)=>{
+function normalizeDetections(result){
+ return (result?.detections||[]).map((det,i)=>{
   const box=det.boundingBox||{};const k=det.keypoints||[];const mouth=k[3];
   const cx=mouth?.x*canvas.width ?? ((box.originX||0)+(box.width||0)/2);
   const cy=mouth?.y*canvas.height ?? ((box.originY||0)+(box.height||0)*.72);
   return {id:i,x:cx,y:cy,r:Math.max(14,(box.width||Math.min(canvas.width,canvas.height)*.12)*.18)};
  });
+}
+async function detectFaces(){
+ const short=await shortDetector();
+ let detected=normalizeDetections(short.detect(canvas));
+ if(detected.length)return {faces:detected,model:'short'};
+ status.textContent='別の顔検出モデルでも確認しています…';
+ const full=await fullDetector();
+ detected=normalizeDetections(full.detect(canvas));
+ return {faces:detected,model:'full'};
 }
 
 async function load(blob){
@@ -61,14 +84,14 @@ async function load(blob){
   ctx.drawImage(image,0,0,w,h);
   status.textContent='顔検出モデルを準備しています…';
   try{
-   faces=await detectFaces();
+   const detection=await detectFaces();faces=detection.faces;
    count.textContent=`${faces.length}人を検出`;
    status.textContent=faces.length
-    ?'検出した全員に合成しました。漏れがあれば「手動で追加」。'
-    :'顔検出モデルは動作しましたが、この画像では顔を検出できませんでした。イラスト・アバター・小さい顔は手動追加が必要な場合があります。';
+    ?`検出した全員に合成しました（${detection.model==='short'?'Short':'Full'} Range）。漏れがあれば「手動で追加」。`
+    :'顔検出モデルは正常に動作しましたが、この画像では顔を検出できませんでした。実写向けモデルなので、イラスト・3Dアバターは検出できない場合があります。';
   }catch(e){
    console.error('face detector failed',e);faces=[];count.textContent='顔検出モデルの初期化に失敗';
-   const detail=e?.message?` (${String(e.message).slice(0,140)})`:'';
+   const detail=e?.message?` (${String(e.message).slice(0,180)})`:'';
    status.textContent=`写真は読み込めましたが、顔検出モデルを初期化できませんでした${detail}`;
   }
   controls.disabled=false;save.disabled=false;render();
