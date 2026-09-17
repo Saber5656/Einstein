@@ -13,10 +13,10 @@
 <section class="hero"><p class="eyebrow">A LITTLE LESS SERIOUS.</p><h1>みんなで、<em>べーっ。</em></h1><p>写真を一枚選ぶだけ。見つけた全員の口元に、遊び心を。</p></section>
 <section class="app">
   <div class="workspace">
-    <input id="file" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden>
-    <button id="drop" class="drop"><span class="big">📷 → 😛</span><strong>写真を選ぶ</strong><small>JPEG / PNG / WebP</small></button>
+    <input id="file" class="file-input" type="file" accept="image/*">
+    <label id="drop" class="drop" for="file" role="button" tabindex="0"><span class="big">📷 → 😛</span><strong>写真を選ぶ</strong><small>JPEG / PNG / WebP / HEIC</small></label>
     <div id="editor" class="editor" hidden>
-      <div class="bar"><div><button id="edited" class="active">編集後</button><button id="original">元画像</button></div><button id="replace">別の写真</button></div>
+      <div class="bar"><div><button id="edited" type="button" class="active">編集後</button><button id="original" type="button">元画像</button></div><label class="replace" for="file">別の写真</label></div>
       <div class="canvas-wrap"><canvas id="canvas"></canvas><div id="loading" class="loading" hidden>顔を探しています…</div></div>
       <p id="status" class="status"></p>
     </div>
@@ -31,12 +31,12 @@
       <button id="add" type="button" class="secondary">見つからない顔を手動で追加</button>
       <button id="clearManual" type="button" class="ghost">手動追加を取り消す</button>
     </fieldset>
-    <button id="save" class="save" disabled>PNGで保存</button>
+    <button id="save" type="button" class="save" disabled>PNGで保存</button>
     <p class="privacy">写真そのものは外部へ送信しません。初回のみ顔検出ライブラリとモデルをCDNから取得します。</p>
   </aside>
 </section>
 </main>
-<footer>EXPERIMENT 001 / v1.1-cloud</footer>
+<footer>EXPERIMENT 001 / v1.2-ios-fix</footer>
 <script type="module" src="./app.js"></script>
 </body>
 </html>
